@@ -1,0 +1,508 @@
+<title>Barras en contacto</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+  /* Concepto: instrumento de laboratorio sobrio. Fondo neutro frío, un acento azul para controles,
+     y una escala de color térmica (azul a rojo) reservada solo para temperatura. */
+  :root {
+    --bg: #f5f7fa;
+    --card: #ffffff;
+    --fg: #16202e;
+    --muted: #566176;
+    --line: #dce2ea;
+    --grid: #e8ecf2;
+    --accent: #1d5ad6;
+    --accent-fg: #ffffff;
+    --hot: #cf4318;
+    --cold: #2458b8;
+    --gold: #b3860f;
+    --silver: #7d8798;
+    --gold-tint: rgba(179, 134, 15, 0.10);
+    --silver-tint: rgba(125, 135, 152, 0.14);
+    --flow: #e0561f;
+    --font-head: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e131b; --card: #151c27; --fg: #e7ecf4; --muted: #9aa6ba; --line: #283244; --grid: #202a3a;
+      --accent: #6fa3ff; --accent-fg: #0b1220; --hot: #ff7a50; --cold: #6aa2ff; --gold: #d9b04a; --silver: #a9b3c4;
+      --gold-tint: rgba(217, 176, 74, 0.13); --silver-tint: rgba(169, 179, 196, 0.12); --flow: #ff8a5c;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e131b; --card: #151c27; --fg: #e7ecf4; --muted: #9aa6ba; --line: #283244; --grid: #202a3a;
+    --accent: #6fa3ff; --accent-fg: #0b1220; --hot: #ff7a50; --cold: #6aa2ff; --gold: #d9b04a; --silver: #a9b3c4;
+    --gold-tint: rgba(217, 176, 74, 0.13); --silver-tint: rgba(169, 179, 196, 0.12); --flow: #ff8a5c;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    padding-block: 20px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-family: var(--font-head); font-size: clamp(24px, 4.4vw, 32px); line-height: 1.15; font-weight: 600; margin: 0; text-wrap: balance; }
+  h2 { font-family: var(--font-head); font-size: 16px; font-weight: 600; margin: 0 0 2px; }
+  .lede { margin: 6px 0 0; color: var(--muted); max-width: 66ch; text-wrap: pretty; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .steps { list-style: none; display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 12px; padding: 0; }
+  .steps li { font-size: 13px; padding: 3px 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); }
+  .steps li.done { color: var(--fg); }
+  .steps li.active { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  .cv { width: 100%; min-width: 0; }
+  canvas { display: block; }
+  .caption { margin: 10px 0 0; min-height: 4.6em; max-width: 78ch; text-wrap: pretty; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+  button, select {
+    font: inherit; font-size: 14px; color: var(--fg); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  select { padding: 7px 10px; }
+  button:hover:not(:disabled) { background: var(--grid); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+  button:disabled, input:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  label { font-size: 14px; color: var(--muted); display: inline-flex; gap: 8px; align-items: center; }
+  .grow { flex: 1 1 260px; min-width: 0; }
+  .grow input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); }
+  output { font-variant-numeric: tabular-nums; color: var(--fg); min-width: 4.5em; text-align: right; }
+  .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; margin: 0; }
+  .readout div { min-width: 0; }
+  .readout dt { font-size: 12.5px; color: var(--muted); }
+  .readout dd { margin: 2px 0 0; font-family: var(--font-head); font-size: 20px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .readout dd small { font-family: var(--font-body); font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  .charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+  .charts .wide { grid-column: 1 / -1; }
+  .note { margin: 6px 0 0; font-size: 13px; color: var(--muted); max-width: 70ch; text-wrap: pretty; }
+  footer.card { font-size: 13px; color: var(--muted); }
+  footer p { margin: 0 0 6px; max-width: 80ch; }
+  footer p:last-child { margin: 0; }
+</style>
+
+<div class="wrap" id="app">
+  <header>
+    <h1>Dos barras en contacto</h1>
+    <p class="lede">Una barra de oro y una de plata, unidas y aisladas por los costados, con los extremos a 80 °C y 30 °C. Mira qué pasa desde que se conectan hasta que la temperatura deja de cambiar.</p>
+  </header>
+
+  <section class="card" aria-label="Esquema de las barras">
+    <ol class="steps" id="steps">
+      <li>1 · Separadas</li><li>2 · Se conectan</li><li>3 · Transitorio</li><li>4 · Estacionario</li>
+    </ol>
+    <div class="cv"><canvas id="bars" role="img" aria-label="Barra de oro y barra de plata entre una fuente caliente y una fría, coloreadas según su temperatura, con flechas que indican el calor que pasa"></canvas></div>
+    <p class="caption" id="caption" aria-live="polite"></p>
+  </section>
+
+  <section class="controls" aria-label="Controles">
+    <button id="btnConnect" class="primary">Conectar</button>
+    <button id="btnPlay" disabled>Pausa</button>
+    <button id="btnReset">Reiniciar</button>
+    <label>Velocidad
+      <select id="speed">
+        <option value="5">Lenta</option>
+        <option value="12" selected>Normal</option>
+        <option value="30">Rápida</option>
+      </select>
+    </label>
+    <label class="grow">Tiempo
+      <input id="time" type="range" min="0" max="240" step="0.25" value="0" disabled>
+      <output id="timeOut">0 s</output>
+    </label>
+  </section>
+
+  <dl class="card readout" aria-label="Valores actuales">
+    <div><dt>Temperatura de la unión</dt><dd id="rTj">—</dd></div>
+    <div><dt>Calor que entra (izquierda)</dt><dd id="rIn">—</dd></div>
+    <div><dt>Calor que sale (derecha)</dt><dd id="rOut">—</dd></div>
+    <div><dt>Estado final</dt><dd>51.2 °C <small>y 9.0 W</small></dd></div>
+  </dl>
+
+  <section class="charts">
+    <figure class="card" style="margin:0">
+      <h2>Temperatura en cada punto</h2>
+      <div class="cv"><canvas id="chartT" role="img" aria-label="Temperatura a lo largo de las dos barras"></canvas></div>
+      <p class="note">La línea punteada es el perfil final: una recta en cada barra, con un quiebre en la unión.</p>
+    </figure>
+    <figure class="card" style="margin:0">
+      <h2>Calor que pasa en cada punto (H)</h2>
+      <div class="cv"><canvas id="chartH" role="img" aria-label="Calor que pasa por cada punto de las barras"></canvas></div>
+      <p class="note">En el estado estacionario esta curva se vuelve una línea horizontal: por cada punto pasa el mismo calor.</p>
+    </figure>
+    <figure class="card wide" style="margin:0">
+      <h2>Calor que entra y calor que sale, en el tiempo</h2>
+      <div class="cv"><canvas id="chartQ" role="img" aria-label="Calor que entra por el extremo caliente y calor que sale por el extremo frío en función del tiempo"></canvas></div>
+      <p class="note">El área entre las dos curvas es el calor que se acumula en las barras. Cuando las curvas se juntan, ya no se acumula nada.</p>
+    </figure>
+  </section>
+
+  <footer class="card">
+    <p>Modelo: dos barras de 10 cm y 1 cm² de sección, aisladas por los costados, a 20 °C al inicio. Los extremos se mantienen a 80 °C y 30 °C.</p>
+    <p>Oro: k = 314 W/mK, densidad 19 300 kg/m³, calor específico 129 J/kgK. Plata: k = 427 W/mK, 10 490 kg/m³, 235 J/kgK. La conductividad es la del ejemplo; la densidad y el calor específico son valores típicos y solo cambian la rapidez del transitorio, no el estado final.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  /* ===== SIM ===== */
+  var P = { k1: 314, k2: 427, rho1: 19300, c1: 129, rho2: 10490, c2: 235, Lb: 0.10, T1: 80, T2: 30, T0: 20, A: 1e-4 };
+  var N = 120, dx = 2 * P.Lb / N, half = N / 2;
+  var k = new Float64Array(N), C = new Float64Array(N), Kf = new Float64Array(N + 1);
+  for (var i = 0; i < N; i++) {
+    var g = i < half;
+    k[i] = g ? P.k1 : P.k2;
+    C[i] = (g ? P.rho1 * P.c1 : P.rho2 * P.c2) * dx;
+  }
+  Kf[0] = k[0] / (dx / 2);
+  Kf[N] = k[N - 1] / (dx / 2);
+  for (i = 1; i < N; i++) Kf[i] = 1 / (dx / (2 * k[i - 1]) + dx / (2 * k[i]));
+  var Hss = (P.T1 - P.T2) / (P.Lb / (P.k1 * P.A) + P.Lb / (P.k2 * P.A));
+  var Tss = (P.k1 * P.T1 + P.k2 * P.T2) / (P.k1 + P.k2);
+
+  var DT_SNAP = 0.25, TMAX = 240, NS = Math.round(TMAX / DT_SNAP);
+  var snaps = new Float32Array((NS + 1) * N);
+  var Hin = new Float32Array(NS + 1), Hout = new Float32Array(NS + 1), Tjs = new Float32Array(NS + 1);
+  (function simulate() {
+    var T = new Float64Array(N).fill(P.T0), Tn = new Float64Array(N);
+    var dtMax = Infinity;
+    for (var i = 0; i < N; i++) dtMax = Math.min(dtMax, C[i] / (Kf[i] + Kf[i + 1]));
+    var sub = Math.ceil(DT_SNAP / (0.45 * dtMax)), dt = DT_SNAP / sub;
+    for (var s = 0; s <= NS; s++) {
+      snaps.set(T, s * N);
+      Hin[s] = Kf[0] * (P.T1 - T[0]) * P.A;
+      Hout[s] = Kf[N] * (T[N - 1] - P.T2) * P.A;
+      Tjs[s] = 0.5 * (T[half - 1] + T[half]);
+      if (s === NS) break;
+      for (var q = 0; q < sub; q++) {
+        for (i = 0; i < N; i++) {
+          var l = i === 0 ? P.T1 : T[i - 1], r = i === N - 1 ? P.T2 : T[i + 1];
+          Tn[i] = T[i] + dt * (Kf[i] * (l - T[i]) + Kf[i + 1] * (r - T[i])) / C[i];
+        }
+        var tmp = T; T = Tn; Tn = tmp;
+      }
+    }
+  })();
+  if (typeof module !== 'undefined') { module.exports = { Hss: Hss, Tss: Tss, Hin: Hin, Hout: Hout, Tjs: Tjs, NS: NS }; }
+  /* ===== UI ===== */
+  if (typeof document === 'undefined') return;
+
+  var $ = function (s) { return document.querySelector(s); };
+  var cB = $('#bars'), cT = $('#chartT'), cH = $('#chartH'), cQ = $('#chartQ');
+  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+  var reduced = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var S = { phase: 'sep', gap: 1, t: 0, playing: false, speed: 12, raf: 0, last: 0, connStart: 0, dur: reduced ? 0 : 900, hin: 0, hout: 0, tj: P.T0 };
+  var fieldT = new Float64Array(N).fill(P.T0), faceH = new Float64Array(N + 1);
+
+  function setField(t) {
+    if (S.phase !== 'run') { fieldT.fill(P.T0); faceH.fill(0); S.hin = 0; S.hout = 0; S.tj = P.T0; return; }
+    var f = clamp(t / DT_SNAP, 0, NS), i0 = Math.min(Math.floor(f), NS - 1), a = f - i0, i;
+    for (i = 0; i < N; i++) fieldT[i] = snaps[i0 * N + i] * (1 - a) + snaps[(i0 + 1) * N + i] * a;
+    for (i = 0; i <= N; i++) {
+      var l = i === 0 ? P.T1 : fieldT[i - 1], r = i === N ? P.T2 : fieldT[i];
+      faceH[i] = Kf[i] * (l - r) * P.A;
+    }
+    S.hin = faceH[0]; S.hout = faceH[N]; S.tj = 0.5 * (fieldT[half - 1] + fieldT[half]);
+  }
+
+  function stage() {
+    if (S.phase === 'sep') return 'sep';
+    if (S.phase === 'connecting') return 'connecting';
+    if (Math.abs(S.tj - Tss) < 0.3 && Math.abs(S.hin - S.hout) < 0.03 * Hss) return 'steady';
+    if (S.tj < P.T0 + 0.8) return 'early';
+    return 'mid';
+  }
+
+  /* color helpers */
+  var STOPS = [[20, 43, 95, 180], [35, 112, 168, 214], [50, 240, 234, 222], [65, 240, 160, 100], [80, 210, 66, 26]];
+  function heat(T) {
+    T = clamp(T, 20, 80);
+    for (var j = 1; j < STOPS.length; j++) {
+      if (T <= STOPS[j][0]) {
+        var a = STOPS[j - 1], b = STOPS[j], u = (T - a[0]) / (b[0] - a[0]);
+        return 'rgb(' + Math.round(a[1] + (b[1] - a[1]) * u) + ',' + Math.round(a[2] + (b[2] - a[2]) * u) + ',' + Math.round(a[3] + (b[3] - a[3]) * u) + ')';
+      }
+    }
+    return 'rgb(210,66,26)';
+  }
+  function colors() {
+    var cs = getComputedStyle(document.documentElement);
+    var g = function (n) { return cs.getPropertyValue(n).trim(); };
+    return { fg: g('--fg'), muted: g('--muted'), line: g('--line'), grid: g('--grid'), card: g('--card'), accent: g('--accent'),
+      hot: g('--hot'), cold: g('--cold'), gold: g('--gold'), silver: g('--silver'), flow: g('--flow'),
+      goldTint: g('--gold-tint'), silverTint: g('--silver-tint') };
+  }
+  function fit(c, h) {
+    var dpr = window.devicePixelRatio || 1;
+    var w = Math.max(200, Math.floor(c.parentElement.clientWidth));
+    if (c._w !== w || c._d !== dpr || c._h !== h) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      c.style.width = w + 'px'; c.style.height = h + 'px';
+      c._w = w; c._d = dpr; c._h = h;
+    }
+    var ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+  var FB = "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif";
+  var FH = "'Space Grotesk', Inter, system-ui, sans-serif";
+  function fmtW(v) { return v > 100 ? '> 100 W' : v.toFixed(1) + ' W'; }
+
+  function arrow(ctx, cx, cy, len, th, dir, color) {
+    var hl = Math.min(len * 0.5, th * 1.3 + 9), hw = th * 1.7 + 6;
+    var x0 = cx - dir * len / 2, x1 = cx + dir * len / 2, xb = x1 - dir * hl;
+    ctx.fillStyle = color;
+    ctx.fillRect(Math.min(x0, xb), cy - th / 2, Math.abs(xb - x0), th);
+    ctx.beginPath(); ctx.moveTo(xb, cy - hw / 2); ctx.lineTo(x1, cy); ctx.lineTo(xb, cy + hw / 2); ctx.closePath(); ctx.fill();
+  }
+
+  /* ----- barras ----- */
+  function drawBars() {
+    var f = fit(cB, 214), ctx = f.ctx, w = f.w, col = colors();
+    var srcW = clamp(w * 0.085, 46, 78), gapMax = clamp(w * 0.05, 12, 40), pad = 6;
+    var barW = (w - 2 * pad - 2 * srcW - 3 * gapMax) / 2;
+    var g = gapMax * S.gap, total = 2 * srcW + 2 * barW + 3 * g, x0 = (w - total) / 2;
+    var xSL = x0, xG = xSL + srcW + g, xS = xG + barW + g, xSR = xS + barW + g;
+    var yB = 56, hB = 58, yS = 46, hS = 78;
+
+    ctx.fillStyle = heat(P.T1); ctx.fillRect(xSL, yS, srcW, hS);
+    ctx.fillStyle = heat(P.T2); ctx.fillRect(xSR, yS, srcW, hS);
+    ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.font = '600 14px ' + FB;
+    ctx.fillText('80 °C', xSL + srcW / 2, yS + hS / 2 - 8);
+    ctx.fillText('30 °C', xSR + srcW / 2, yS + hS / 2 - 8);
+    ctx.font = '400 11px ' + FB;
+    ctx.fillText('fuente', xSL + srcW / 2, yS + hS / 2 + 10);
+    ctx.fillText('fuente', xSR + srcW / 2, yS + hS / 2 + 10);
+
+    var cw = barW / half, i;
+    for (i = 0; i < half; i++) {
+      ctx.fillStyle = heat(fieldT[i]); ctx.fillRect(xG + i * cw, yB, cw + 0.7, hB);
+      ctx.fillStyle = heat(fieldT[half + i]); ctx.fillRect(xS + i * cw, yB, cw + 0.7, hB);
+    }
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = col.gold; ctx.strokeRect(xG, yB, barW, hB);
+    ctx.strokeStyle = col.silver; ctx.strokeRect(xS, yB, barW, hB);
+
+    ctx.fillStyle = col.fg; ctx.font = '600 14px ' + FH; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Oro', xG + barW / 2, 22);
+    ctx.fillText('Plata', xS + barW / 2, 22);
+    ctx.fillStyle = col.muted; ctx.font = '400 12px ' + FB;
+    ctx.fillText('k = 314 W/mK', xG + barW / 2, 38);
+    ctx.fillText('k = 427 W/mK', xS + barW / 2, 38);
+
+    var connected = S.phase === 'run' && S.gap < 0.001;
+    if (connected) {
+      var xJ = xG + barW;
+      ctx.strokeStyle = col.fg; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.moveTo(xJ, yB - 4); ctx.lineTo(xJ, yB + hB + 10); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = col.muted; ctx.font = '400 12px ' + FB; ctx.textAlign = 'center';
+      ctx.fillText('unión', xJ, yB + hB + 24);
+      ctx.textAlign = 'left'; ctx.font = 'italic 400 12px ' + FB;
+      ctx.fillText('calor que pasa por cada punto (H):', pad + 2, 150);
+      ctx.textAlign = 'center';
+      var len = clamp(w * 0.1, 46, 78), pos = [[xG + barW / 2, 30], [xJ, 60], [xS + barW / 2, 90]];
+      for (i = 0; i < pos.length; i++) {
+        var H = faceH[pos[i][1]], th = Math.min(18, 1.5 + Math.abs(H) * 0.7);
+        if (Math.abs(H) > 0.15) arrow(ctx, pos[i][0], 174, len, th, H >= 0 ? 1 : -1, col.flow);
+        else { ctx.fillStyle = col.flow; ctx.fillRect(pos[i][0] - 8, 173, 16, 2); }
+        ctx.fillStyle = col.fg; ctx.font = '600 13px ' + FB;
+        ctx.fillText(fmtW(H), pos[i][0], 203);
+      }
+    } else if (S.phase === 'sep') {
+      ctx.fillStyle = col.muted; ctx.font = 'italic 400 13px ' + FB; ctx.textAlign = 'center';
+      ctx.fillText('Sin contacto: no pasa calor.', w / 2, 170);
+    }
+  }
+
+  /* ----- marcos de gráficos ----- */
+  function frame(ctx, w, h, c, col) {
+    var m = { l: 44, r: 12, t: 12, b: 36 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+    var X = function (v) { return m.l + (v - c.x0) / (c.x1 - c.x0) * pw; };
+    var Y = function (v) { return m.t + (1 - (v - c.y0) / (c.y1 - c.y0)) * ph; };
+    ctx.font = '400 12px ' + FB; ctx.fillStyle = col.muted; ctx.strokeStyle = col.grid; ctx.lineWidth = 1;
+    c.yt.forEach(function (v) {
+      ctx.beginPath(); ctx.moveTo(m.l, Y(v)); ctx.lineTo(w - m.r, Y(v)); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(v, m.l - 6, Y(v));
+    });
+    c.xt.forEach(function (v) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(v, X(v), m.t + ph + 6); });
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(c.xl, m.l + pw / 2, h - 4);
+    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(c.yl, 0, 0); ctx.restore();
+    ctx.strokeStyle = col.line; ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t + ph); ctx.lineTo(w - m.r, m.t + ph); ctx.stroke();
+    return { X: X, Y: Y, m: m, pw: pw, ph: ph };
+  }
+  function halo(ctx, col, txt, x, y) {
+    ctx.lineWidth = 4; ctx.strokeStyle = col.card; ctx.lineJoin = 'round'; ctx.strokeText(txt, x, y); ctx.fillText(txt, x, y);
+  }
+  function chartH(w) { return w < 480 ? 210 : 240; }
+
+  function drawT() {
+    var w0 = Math.max(200, Math.floor(cT.parentElement.clientWidth)), f = fit(cT, chartH(w0)), ctx = f.ctx, col = colors();
+    var F = frame(ctx, f.w, f.h, { x0: 0, x1: 20, y0: 15, y1: 85, xt: [0, 5, 10, 15, 20], yt: [20, 40, 60, 80], xl: 'posición x (cm)', yl: 'T (°C)' }, col);
+    ctx.fillStyle = col.goldTint; ctx.fillRect(F.X(0), F.m.t, F.X(10) - F.X(0), F.ph);
+    ctx.fillStyle = col.silverTint; ctx.fillRect(F.X(10), F.m.t, F.X(20) - F.X(10), F.ph);
+    ctx.fillStyle = col.muted; ctx.font = '500 12px ' + FB; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText('Oro', F.X(5), F.m.t + 4); ctx.fillText('Plata', F.X(15), F.m.t + 4);
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 1.6; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(F.X(0), F.Y(P.T1)); ctx.lineTo(F.X(10), F.Y(Tss)); ctx.lineTo(F.X(20), F.Y(P.T2)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.textAlign = 'right'; ctx.textBaseline = 'bottom'; ctx.fillStyle = col.muted; ctx.font = '400 12px ' + FB;
+    ctx.fillText('perfil final', F.X(19.8), F.Y(P.T2) - 22);
+    ctx.strokeStyle = col.accent; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (S.phase === 'run') {
+      ctx.moveTo(F.X(0), F.Y(P.T1));
+      for (var i = 0; i < N; i++) ctx.lineTo(F.X((i + 0.5) * dx * 100), F.Y(fieldT[i]));
+      ctx.lineTo(F.X(20), F.Y(P.T2));
+    } else { ctx.moveTo(F.X(0), F.Y(P.T0)); ctx.lineTo(F.X(20), F.Y(P.T0)); }
+    ctx.stroke();
+    if (S.phase === 'run') {
+      ctx.fillStyle = col.accent; ctx.beginPath(); ctx.arc(F.X(10), F.Y(S.tj), 4.5, 0, 7); ctx.fill();
+      ctx.fillStyle = col.fg; ctx.font = '600 12px ' + FB; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+      halo(ctx, col, S.tj.toFixed(1) + ' °C', F.X(10) + 8, F.Y(S.tj) - 6);
+    }
+  }
+
+  function drawH() {
+    var w0 = Math.max(200, Math.floor(cH.parentElement.clientWidth)), f = fit(cH, chartH(w0)), ctx = f.ctx, col = colors();
+    var F = frame(ctx, f.w, f.h, { x0: 0, x1: 20, y0: -10, y1: 40, xt: [0, 5, 10, 15, 20], yt: [0, 10, 20, 30, 40], xl: 'posición x (cm)', yl: 'H (W)' }, col);
+    ctx.fillStyle = col.goldTint; ctx.fillRect(F.X(0), F.m.t, F.X(10) - F.X(0), F.ph);
+    ctx.fillStyle = col.silverTint; ctx.fillRect(F.X(10), F.m.t, F.X(20) - F.X(10), F.ph);
+    ctx.strokeStyle = col.line; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(F.m.l, F.Y(0)); ctx.lineTo(f.w - F.m.r, F.Y(0)); ctx.stroke();
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 1.6; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(F.X(0), F.Y(Hss)); ctx.lineTo(F.X(20), F.Y(Hss)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = col.muted; ctx.font = '400 12px ' + FB; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('H final ≈ ' + Hss.toFixed(1) + ' W', F.X(19.8), F.Y(Hss) - 4);
+    ctx.save(); ctx.beginPath(); ctx.rect(F.m.l, F.m.t, F.pw, F.ph); ctx.clip();
+    ctx.strokeStyle = col.flow; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+    if (S.phase === 'run') {
+      for (var i = 0; i <= N; i++) {
+        var xc = i === 0 ? 0 : (i === N ? 20 : i * dx * 100);
+        if (i === 0) ctx.moveTo(F.X(xc), F.Y(faceH[i])); else ctx.lineTo(F.X(xc), F.Y(faceH[i]));
+      }
+    } else { ctx.moveTo(F.X(0), F.Y(0)); ctx.lineTo(F.X(20), F.Y(0)); }
+    ctx.stroke(); ctx.restore();
+    if (S.phase === 'run' && faceH[0] > 40) {
+      ctx.fillStyle = col.flow; ctx.font = '500 12px ' + FB; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText('↑ sigue fuera de escala', F.X(0.6), F.m.t + 4);
+    }
+  }
+
+  function drawQ() {
+    var w0 = Math.max(200, Math.floor(cQ.parentElement.clientWidth)), f = fit(cQ, chartH(w0)), ctx = f.ctx, col = colors();
+    var F = frame(ctx, f.w, f.h, { x0: 0, x1: TMAX, y0: -10, y1: 40, xt: [0, 60, 120, 180, 240], yt: [0, 10, 20, 30, 40], xl: 'tiempo (s)', yl: 'H (W)' }, col);
+    ctx.strokeStyle = col.line; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(F.m.l, F.Y(0)); ctx.lineTo(f.w - F.m.r, F.Y(0)); ctx.stroke();
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 1.6; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(F.X(0), F.Y(Hss)); ctx.lineTo(F.X(TMAX), F.Y(Hss)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = col.muted; ctx.font = '400 12px ' + FB; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+    ctx.fillText('H final ≈ ' + Hss.toFixed(1) + ' W', F.X(TMAX) - 4, F.Y(Hss) - 4);
+    if (S.phase === 'run') {
+      var f0 = clamp(S.t / DT_SNAP, 0, NS), n = Math.floor(f0), a = f0 - n, j;
+      ctx.save(); ctx.beginPath(); ctx.rect(F.m.l, F.m.t, F.pw, F.ph); ctx.clip();
+      var pts = function (arr) {
+        var p = [];
+        for (j = 0; j <= n; j++) p.push([j * DT_SNAP, arr[j]]);
+        if (n < NS) p.push([S.t, arr[n] * (1 - a) + arr[n + 1] * a]);
+        return p;
+      };
+      var pi = pts(Hin), po = pts(Hout);
+      ctx.fillStyle = col.hot; ctx.globalAlpha = 0.16; ctx.beginPath();
+      pi.forEach(function (p, q) { if (q === 0) ctx.moveTo(F.X(p[0]), F.Y(p[1])); else ctx.lineTo(F.X(p[0]), F.Y(p[1])); });
+      for (j = po.length - 1; j >= 0; j--) ctx.lineTo(F.X(po[j][0]), F.Y(po[j][1]));
+      ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+      var line = function (p, c) {
+        ctx.strokeStyle = c; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+        p.forEach(function (q, z) { if (z === 0) ctx.moveTo(F.X(q[0]), F.Y(q[1])); else ctx.lineTo(F.X(q[0]), F.Y(q[1])); });
+        ctx.stroke();
+      };
+      line(pi, col.hot); line(po, col.cold);
+      ctx.restore();
+      ctx.strokeStyle = col.fg; ctx.lineWidth = 1; ctx.setLineDash([2, 3]);
+      ctx.beginPath(); ctx.moveTo(F.X(S.t), F.m.t); ctx.lineTo(F.X(S.t), F.m.t + F.ph); ctx.stroke(); ctx.setLineDash([]);
+    }
+    var lx = f.w - F.m.r - 6;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.font = '500 12px ' + FB;
+    ctx.fillStyle = col.hot; ctx.fillRect(lx - 168, F.Y(37) - 1.5, 16, 3); ctx.fillText('entra por la izquierda', lx, F.Y(37));
+    ctx.fillStyle = col.cold; ctx.fillRect(lx - 168, F.Y(31) - 1.5, 16, 3); ctx.fillText('sale por la derecha', lx, F.Y(31));
+  }
+
+  /* ----- interfaz ----- */
+  var stepsEl = $('#steps').children, capEl = $('#caption');
+  var order = { sep: 0, connecting: 1, early: 2, mid: 2, steady: 3 };
+  function caption(st) {
+    var hi = fmtW(S.hin), ho = fmtW(S.hout);
+    switch (st) {
+      case 'sep': return 'Antes de conectar: cada barra está a 20 °C, no hay diferencia de temperatura y no pasa calor (H = 0). Presiona «Conectar» para unirlas entre sí y a las fuentes de 80 °C y 30 °C.';
+      case 'connecting': return 'Se conectan las barras entre sí y con las fuentes: el extremo izquierdo queda a 80 °C y el derecho a 30 °C.';
+      case 'early': return 'Transitorio: el calor entra por el extremo caliente, pero la plata todavía casi no se entera. La temperatura cambia con el tiempo y H es distinta en cada punto.';
+      case 'mid': return 'Transitorio: el calor ya cruzó la unión y avanza por la plata. Por la izquierda entra ' + hi + ' y por la derecha sale ' + ho + '. La diferencia se queda en las barras y por eso siguen calentándose. Las flechas de calor aún no son iguales.';
+      default: return 'Estado estacionario: las temperaturas ya no cambian. Lo que entra por la izquierda (' + hi + ') es igual a lo que sale por la derecha (' + ho + '), y H vale lo mismo en el oro, en la unión y en la plata. La unión queda a ' + Tss.toFixed(1) + ' °C.';
+    }
+  }
+  function updateUI() {
+    var st = stage(), idx = order[st], i;
+    for (i = 0; i < stepsEl.length; i++) stepsEl[i].className = i === idx ? 'active' : (i < idx ? 'done' : '');
+    capEl.textContent = caption(st);
+    var run = S.phase === 'run';
+    $('#rTj').textContent = run ? S.tj.toFixed(1) + ' °C' : '—';
+    $('#rIn').textContent = run ? fmtW(S.hin) : '—';
+    $('#rOut').textContent = run ? fmtW(S.hout) : '—';
+    var tm = $('#time');
+    tm.disabled = !run; tm.value = S.t;
+    $('#timeOut').textContent = Math.round(S.t) + ' s';
+    $('#btnConnect').disabled = S.phase !== 'sep';
+    var bp = $('#btnPlay');
+    bp.disabled = !run || S.t >= TMAX;
+    bp.textContent = S.t >= TMAX ? 'Fin' : (S.playing ? 'Pausa' : 'Continuar');
+  }
+  function render() { setField(S.t); drawBars(); drawT(); drawH(); drawQ(); updateUI(); }
+
+  var ease = function (p) { return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; };
+  function tick(ts) {
+    S.raf = 0;
+    var dtR = S.last ? Math.min(0.1, (ts - S.last) / 1000) : 0; S.last = ts;
+    var active = false;
+    if (S.phase === 'connecting') {
+      var p = S.dur ? clamp((ts - S.connStart) / S.dur, 0, 1) : 1;
+      S.gap = 1 - ease(p);
+      if (p >= 1) { S.phase = 'run'; S.gap = 0; S.t = 0; S.playing = true; }
+      active = true;
+    } else if (S.phase === 'run' && S.playing) {
+      S.t = Math.min(TMAX, S.t + S.speed * dtR);
+      if (S.t >= TMAX) S.playing = false;
+      active = S.playing;
+    }
+    render();
+    if (active) S.raf = requestAnimationFrame(tick); else S.last = 0;
+  }
+  function kick() { if (!S.raf) { S.last = 0; S.raf = requestAnimationFrame(tick); } }
+
+  $('#btnConnect').addEventListener('click', function () {
+    if (S.phase !== 'sep') return;
+    S.phase = 'connecting'; S.connStart = performance.now(); kick();
+  });
+  $('#btnPlay').addEventListener('click', function () {
+    if (S.phase !== 'run' || S.t >= TMAX) return;
+    S.playing = !S.playing; if (S.playing) kick(); else render();
+  });
+  $('#btnReset').addEventListener('click', function () {
+    S.phase = 'sep'; S.gap = 1; S.t = 0; S.playing = false; render();
+  });
+  $('#speed').addEventListener('change', function (e) { S.speed = parseFloat(e.target.value); });
+  $('#time').addEventListener('input', function (e) { S.t = parseFloat(e.target.value); S.playing = false; render(); });
+
+  if (window.ResizeObserver) new ResizeObserver(function () { render(); }).observe($('#app'));
+  else window.addEventListener('resize', render);
+  if (window.matchMedia) {
+    var mq = matchMedia('(prefers-color-scheme: dark)');
+    if (mq.addEventListener) mq.addEventListener('change', render);
+  }
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+  render();
+})();
+</script>
