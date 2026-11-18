@@ -1,0 +1,383 @@
+<title>Pérdida por convección</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+  :root {
+    --bg: #f5f7fa; --card: #ffffff; --fg: #16202e; --muted: #566176; --line: #dce2ea; --grid: #e8ecf2;
+    --accent: #1d5ad6; --accent-fg: #ffffff; --flow: #e0561f; --glass: rgba(120,170,210,0.35);
+    --font-head: 'Space Grotesk', 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e131b; --card: #151c27; --fg: #e7ecf4; --muted: #9aa6ba; --line: #283244; --grid: #202a3a;
+      --accent: #6fa3ff; --accent-fg: #0b1220; --flow: #ff8a5c; --glass: rgba(120,170,210,0.28); color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e131b; --card: #151c27; --fg: #e7ecf4; --muted: #9aa6ba; --line: #283244; --grid: #202a3a;
+    --accent: #6fa3ff; --accent-fg: #0b1220; --flow: #ff8a5c; --glass: rgba(120,170,210,0.28); color-scheme: dark;
+  }
+  body {
+    background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+    padding-block: 20px 28px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .wrap { max-width: 980px; margin: 0 auto; display: grid; gap: 16px; }
+  h1 { font-family: var(--font-head); font-size: clamp(24px, 4.4vw, 32px); line-height: 1.15; font-weight: 600; margin: 0; text-wrap: balance; }
+  h2 { font-family: var(--font-head); font-size: 16px; font-weight: 600; margin: 0 0 6px; }
+  .lede { margin: 6px 0 0; color: var(--muted); max-width: 66ch; text-wrap: pretty; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; min-width: 0; }
+  .cv { width: 100%; min-width: 0; }
+  canvas { display: block; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px 12px; align-items: center; }
+  button, select {
+    font: inherit; font-size: 14px; color: var(--fg); background: var(--card);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  }
+  select { padding: 7px 10px; }
+  button:hover:not(:disabled) { background: var(--grid); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  button.primary:hover:not(:disabled) { background: var(--accent); filter: brightness(1.08); }
+  button:disabled { opacity: 0.45; cursor: not-allowed; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  label { font-size: 14px; color: var(--muted); }
+  .sliders { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 12px 20px; }
+  .sl { display: grid; gap: 4px; min-width: 0; }
+  .sl .row { display: flex; justify-content: space-between; gap: 8px; }
+  .sl output { color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .sl input[type=range] { width: 100%; min-width: 0; accent-color: var(--accent); }
+  .presets { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .presets span { font-size: 13px; color: var(--muted); }
+  .presets button { padding: 5px 11px; font-size: 13px; }
+  .readout { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px 16px; margin: 0; }
+  .readout dt { font-size: 12.5px; color: var(--muted); }
+  .readout dd { margin: 2px 0 0; font-family: var(--font-head); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+  .readout dd small { font-family: var(--font-body); font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  .steps p { margin: 0 0 6px; max-width: 80ch; font-variant-numeric: tabular-nums; }
+  .steps b { font-weight: 600; }
+  .steps .eq { font-family: var(--font-head); font-size: 17px; }
+  .hint { font-size: 13px; color: var(--muted); margin: 8px 0 0; max-width: 78ch; text-wrap: pretty; }
+  footer.card { font-size: 13px; color: var(--muted); }
+  footer p { margin: 0 0 6px; max-width: 80ch; }
+  footer p:last-child { margin: 0; }
+</style>
+
+<div class="wrap" id="app">
+  <header>
+    <h1>Pérdida de calor por una ventana</h1>
+    <p class="lede">El vidrio está a 10 °C y el aire de afuera a 0 °C. El aire que toca el vidrio se calienta y se lleva el calor: eso es convección. Mira cuánta energía se pierde cada segundo y qué pasa si cambia <i>h</i>.</p>
+  </header>
+
+  <section class="card" aria-label="Escena">
+    <div class="cv"><canvas id="scene" role="img" aria-label="Un vidrio de ventana a 10 grados con aire exterior a 0 grados; partículas de aire calentadas se alejan llevándose calor"></canvas></div>
+  </section>
+
+  <section class="card" aria-label="Capa límite">
+    <h2>Capa límite: qué pasa pegado al vidrio</h2>
+    <div class="cv"><canvas id="prof" role="img" aria-label="Perfil de temperatura del aire en función de la distancia al vidrio"></canvas></div>
+    <p class="hint" id="profTxt"></p>
+  </section>
+
+  <section class="controls" aria-label="Controles">
+    <button id="btnPlay" class="primary">Pausa</button>
+    <button id="btnReset">Reiniciar</button>
+    <label>Velocidad
+      <select id="speed"><option value="1" selected>1× (tiempo real)</option><option value="2">2×</option><option value="5">5×</option></select>
+    </label>
+  </section>
+
+  <section class="card" aria-label="Parámetros">
+    <div class="sliders">
+      <div class="sl"><div class="row"><label for="h">Coeficiente de convección h</label><output id="hO"></output></div><input id="h" type="range" min="1" max="100" step="1" value="4"></div>
+      <div class="sl"><div class="row"><label for="A">Área del vidrio A</label><output id="AO"></output></div><input id="A" type="range" min="0.2" max="3" step="0.1" value="1.2"></div>
+      <div class="sl"><div class="row"><label for="Ts">Temperatura del vidrio</label><output id="TsO"></output></div><input id="Ts" type="range" min="-5" max="30" step="1" value="10"></div>
+      <div class="sl"><div class="row"><label for="Ta">Temperatura del aire exterior</label><output id="TaO"></output></div><input id="Ta" type="range" min="-10" max="20" step="1" value="0"></div>
+    </div>
+    <div class="presets">
+      <span>Valores de h:</span>
+      <button data-h="4">Ejercicio (4)</button>
+      <button data-h="15">Libre, alto (15)</button>
+      <button data-h="50">Forzada (50)</button>
+      <button data-h="100">Forzada fuerte (100)</button>
+      <button id="btnEj">Volver al ejercicio</button>
+    </div>
+    <p class="hint">Convección libre en gases: <i>h</i> ≈ 2–25 W/(m²K). Forzada en gases: ≈ 25–250 W/(m²K). Con más viento, <i>h</i> aumenta. Los valores de los botones son solo ejemplos dentro de esos rangos.</p>
+  </section>
+
+  <dl class="card readout" aria-label="Resultados">
+    <div><dt>Rapidez de pérdida H</dt><dd id="rH">—</dd></div>
+    <div><dt>Energía perdida por segundo</dt><dd id="rJ">—</dd></div>
+    <div><dt>Espesor efectivo de la capa límite δ = k/h</dt><dd id="rD">—</dd></div>
+    <div><dt>Tiempo</dt><dd id="rT">0.0 s</dd></div>
+    <div><dt>Energía perdida acumulada</dt><dd id="rE">0 J</dd></div>
+  </dl>
+
+  <section class="card steps" aria-label="Resolución">
+    <h2>Resolución</h2>
+    <p><b>Paso 1.</b> Ley de enfriamiento de Newton: <span class="eq">H = h · A · (T<sub>A</sub> − T)</span></p>
+    <p><b>Paso 2.</b> Reemplazar: <span class="eq" id="s2"></span> (ΔT es igual en K y en °C)</p>
+    <p><b>Paso 3.</b> Resultado: <span class="eq" id="s3"></span></p>
+  </section>
+
+  <section class="card">
+    <h2>Energía perdida en el tiempo</h2>
+    <div class="cv"><canvas id="chart" role="img" aria-label="Energía acumulada perdida por la ventana en función del tiempo"></canvas></div>
+    <p class="hint">La pendiente de la línea es H. Si cambias <i>h</i> mientras corre, la pendiente cambia. Los puntos marcan cada segundo.</p>
+  </section>
+
+  <footer class="card">
+    <p>Modelo: H = hA(T<sub>A</sub> − T) con T<sub>A</sub> la temperatura del vidrio y T la del aire lejos de la superficie, constantes. Pegado al vidrio está la capa límite: una capa delgada donde el aire pasa de estar quieto en la pared (no deslizamiento) a la velocidad y temperatura del aire lejano. En la pared el calor pasa por conducción; más lejos lo arrastra el movimiento del aire. Newton junta ambos efectos en h, con h ≈ k<sub>aire</sub>/δ y k<sub>aire</sub> = 0.0234 W/mK. H > 0 significa que el calor va del vidrio al aire. Si el vidrio estuviera más frío que el aire, H sería negativo y el calor iría del aire al vidrio.</p>
+    <p>Las partículas son ilustrativas: su cantidad y su rapidez aumentan con H y con h, pero no representan moléculas reales.</p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var $ = function (s) { return document.querySelector(s); };
+  var clamp = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+  var cS = $('#scene'), cC = $('#chart'), cP = $('#prof');
+  var FB = "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif";
+  var FH = "'Space Grotesk', Inter, system-ui, sans-serif";
+  var TMAX = 10;
+  var P = { h: 4, A: 1.2, Ts: 10, Ta: 0 };
+  var S = { t: 0, E: 0, playing: true, speed: 1, hist: [[0, 0]], lastHist: 0, raf: 0, last: 0, parts: [], spawnAcc: 0, rnd: 1 };
+  function rand() { S.rnd = (S.rnd * 16807) % 2147483647; return S.rnd / 2147483647; }
+  var Hval = function () { return P.h * P.A * (P.Ts - P.Ta); };
+  var fmt = function (v, d) { return v.toFixed(d).replace('-', '−'); };
+
+  function colors() {
+    var cs = getComputedStyle(document.documentElement), g = function (n) { return cs.getPropertyValue(n).trim(); };
+    return { fg: g('--fg'), muted: g('--muted'), line: g('--line'), grid: g('--grid'), card: g('--card'), accent: g('--accent'), flow: g('--flow'), glass: g('--glass') };
+  }
+  var STOPS = [[-10, 43, 95, 180], [0, 100, 160, 215], [10, 235, 150, 80], [20, 225, 100, 50], [30, 200, 55, 25]];
+  function heat(T) {
+    T = clamp(T, -10, 30);
+    for (var j = 1; j < STOPS.length; j++) {
+      if (T <= STOPS[j][0]) {
+        var a = STOPS[j - 1], b = STOPS[j], u = (T - a[0]) / (b[0] - a[0]);
+        return [Math.round(a[1] + (b[1] - a[1]) * u), Math.round(a[2] + (b[2] - a[2]) * u), Math.round(a[3] + (b[3] - a[3]) * u)];
+      }
+    }
+    return [210, 66, 26];
+  }
+  var rgb = function (c, a) { return 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + (a === undefined ? 1 : a) + ')'; };
+  function fit(c, h) {
+    var dpr = window.devicePixelRatio || 1, w = Math.max(220, Math.floor(c.parentElement.clientWidth));
+    if (c._w !== w || c._d !== dpr || c._h !== h) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+      c.style.width = w + 'px'; c.style.height = h + 'px'; c._w = w; c._d = dpr; c._h = h;
+    }
+    var ctx = c.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+    return { ctx: ctx, w: w, h: h };
+  }
+  function arrow(ctx, x0, y, len, th, color) {
+    var hl = Math.min(len * 0.5, th * 1.3 + 9), hw = th * 1.7 + 6, x1 = x0 + len, xb = x1 - hl;
+    ctx.fillStyle = color; ctx.fillRect(x0, y - th / 2, Math.max(0, xb - x0), th);
+    ctx.beginPath(); ctx.moveTo(xb, y - hw / 2); ctx.lineTo(x1, y); ctx.lineTo(xb, y + hw / 2); ctx.closePath(); ctx.fill();
+  }
+
+  /* ---------- escena ---------- */
+  var SH = 300;
+  function geom(w) { var xg = w * 0.30, gw = Math.max(14, w * 0.025); return { xg: xg, gw: gw, x1: xg + gw, top: 44, bot: SH - 30 }; }
+  function drawScene() {
+    var f = fit(cS, SH), ctx = f.ctx, w = f.w, col = colors(), g = geom(w), i;
+    // aire exterior
+    var ca = heat(P.Ta);
+    ctx.fillStyle = rgb(ca, 0.22); ctx.fillRect(g.x1, g.top, w - g.x1, g.bot - g.top);
+    ctx.fillStyle = col.grid; ctx.fillRect(0, g.top, g.xg, g.bot - g.top);
+    ctx.fillStyle = col.muted; ctx.font = '500 13px ' + FB; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('interior', g.xg / 2, g.top + 22);
+    ctx.fillText('aire exterior: ' + fmt(P.Ta, 0) + ' °C', g.x1 + (w - g.x1) / 2, g.top - 14);
+    // vidrio
+    var cg = heat(P.Ts);
+    ctx.fillStyle = rgb(cg, 0.95); ctx.fillRect(g.xg, g.top, g.gw, g.bot - g.top);
+    ctx.strokeStyle = col.fg; ctx.lineWidth = 2; ctx.strokeRect(g.xg, g.top, g.gw, g.bot - g.top);
+    ctx.fillStyle = col.fg; ctx.font = '600 13px ' + FB; ctx.textAlign = 'center';
+    ctx.fillText('vidrio: ' + fmt(P.Ts, 0) + ' °C', g.xg + g.gw / 2, g.top - 14);
+    ctx.font = '400 12px ' + FB; ctx.fillStyle = col.muted;
+    ctx.fillText('A = ' + fmt(P.A, 1) + ' m²', g.xg + g.gw / 2, g.bot + 18);
+    // partículas
+    var H = Hval(), span = w - g.x1 - 10;
+    for (i = 0; i < S.parts.length; i++) {
+      var p = S.parts[i], u = clamp(p.x / span, 0, 1), T = P.Ta + (p.T0 - P.Ta) * (1 - u);
+      ctx.fillStyle = rgb(heat(T), clamp(0.95 - u * 0.65, 0.3, 1));
+      ctx.beginPath(); ctx.arc(g.x1 + 4 + p.x, g.top + p.y * (g.bot - g.top), p.r, 0, 7); ctx.fill();
+    }
+    // flecha de calor
+    var ay = (g.top + g.bot) / 2, th = Math.min(22, 1.5 + Math.abs(H) * 0.12);
+    ctx.fillStyle = col.fg; ctx.font = '600 15px ' + FB; ctx.textAlign = 'left';
+    if (Math.abs(H) > 0.5) {
+      var dir = H >= 0 ? 1 : -1, len = clamp(w * 0.12, 54, 110);
+      if (dir > 0) arrow(ctx, g.x1 + 10, ay, len, th, col.flow);
+      else { ctx.save(); ctx.translate(g.x1 + 10 + len, ay); ctx.scale(-1, 1); arrow(ctx, 0, 0, len, th, col.flow); ctx.restore(); }
+    }
+    var lbl = 'H = ' + fmt(H, 1) + ' W';
+    ctx.lineWidth = 4; ctx.strokeStyle = col.card; ctx.lineJoin = 'round'; ctx.strokeText(lbl, g.x1 + 12, ay - th / 2 - 14); ctx.fillText(lbl, g.x1 + 12, ay - th / 2 - 14);
+    ctx.fillStyle = col.muted; ctx.font = '400 12px ' + FB;
+    var sub = H >= 0 ? 'calor del vidrio al aire' : 'calor del aire al vidrio';
+    ctx.fillText(sub, g.x1 + 12, ay + th / 2 + 22);
+  }
+  function stepParts(dt) {
+    var w = cS._w || 800, g = geom(w), span = w - g.x1 - 10, H = Math.abs(Hval());
+    var vel = 18 + 90 * Math.sqrt(P.h / 100) * 1.0;      // px/s, ilustrativo (aumenta con h)
+    var rate = clamp(H / 4, 0, 40);                       // partículas/s, ilustrativo (aumenta con H)
+    S.spawnAcc += rate * dt;
+    while (S.spawnAcc >= 1) {
+      S.spawnAcc -= 1;
+      S.parts.push({ x: 0, y: 0.04 + 0.92 * rand(), T0: P.Ts, v: vel * (0.8 + 0.4 * rand()), r: 2.6 + 2 * rand() });
+    }
+    for (var i = S.parts.length - 1; i >= 0; i--) {
+      var p = S.parts[i]; p.x += p.v * dt * (P.Ts >= P.Ta ? 1 : 1);
+      if (p.x > span) S.parts.splice(i, 1);
+    }
+    if (S.parts.length > 400) S.parts.splice(0, S.parts.length - 400);
+  }
+
+  /* ---------- perfil en la capa límite ---------- */
+  var KAIR = 0.0234, YMAX = 30; // mm
+  function drawProf() {
+    var w0 = Math.max(220, Math.floor(cP.parentElement.clientWidth)), f = fit(cP, w0 < 480 ? 220 : 250), ctx = f.ctx, w = f.w, h = f.h, col = colors();
+    var delta = KAIR / P.h * 1000; // mm
+    var lo = Math.min(P.Ts, P.Ta), hi = Math.max(P.Ts, P.Ta);
+    if (hi - lo < 1) { lo -= 1; hi += 1; }
+    var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
+    var m = { l: 56, r: 14, t: 12, b: 38 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+    var X = function (v) { return m.l + v / YMAX * pw; }, Y = function (v) { return m.t + (1 - (v - lo) / (hi - lo)) * ph; };
+    ctx.font = '400 12px ' + FB; ctx.strokeStyle = col.grid; ctx.fillStyle = col.muted; ctx.lineWidth = 1;
+    [0, 0.25, 0.5, 0.75, 1].forEach(function (u) {
+      var v = lo + (hi - lo) * u; ctx.beginPath(); ctx.moveTo(m.l, Y(v)); ctx.lineTo(w - m.r, Y(v)); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(fmt(v, 1), m.l - 6, Y(v));
+    });
+    [0, 5, 10, 15, 20, 25, 30].forEach(function (v) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(v, X(v), m.t + ph + 6); });
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText('distancia al vidrio (mm)', m.l + pw / 2, h - 4);
+    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('T del aire (°C)', 0, 0); ctx.restore();
+    ctx.strokeStyle = col.line; ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t + ph); ctx.lineTo(w - m.r, m.t + ph); ctx.stroke();
+    // zona de la capa límite
+    var xd = Math.min(YMAX, delta);
+    ctx.fillStyle = col.flow; ctx.globalAlpha = 0.10; ctx.fillRect(X(0), m.t, Math.max(2, X(xd) - X(0)), ph); ctx.globalAlpha = 1;
+    // temperatura lejana
+    ctx.strokeStyle = col.muted; ctx.lineWidth = 1.4; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(m.l, Y(P.Ta)); ctx.lineTo(w - m.r, Y(P.Ta)); ctx.stroke();
+    // tangente en la pared: llega a T lejana en y = delta
+    ctx.beginPath(); ctx.moveTo(X(0), Y(P.Ts)); ctx.lineTo(X(xd), Y(P.Ta)); ctx.stroke(); ctx.setLineDash([]);
+    // perfil real
+    ctx.strokeStyle = col.flow; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+    for (var i = 0; i <= 200; i++) {
+      var y = YMAX * i / 200, T = P.Ta + (P.Ts - P.Ta) * Math.exp(-y / delta);
+      if (i === 0) ctx.moveTo(X(y), Y(T)); else ctx.lineTo(X(y), Y(T));
+    }
+    ctx.stroke();
+    ctx.fillStyle = col.flow; ctx.beginPath(); ctx.arc(X(0), Y(P.Ts), 4.5, 0, 7); ctx.fill();
+    // etiquetas
+    ctx.font = '500 12px ' + FB; ctx.textBaseline = 'bottom';
+    ctx.fillStyle = col.fg; ctx.textAlign = 'right';
+    ctx.lineWidth = 4; ctx.strokeStyle = col.card;
+    var t1 = 'T lejos del vidrio = ' + fmt(P.Ta, 0) + ' °C', y1 = Y(P.Ta) + (P.Ts >= P.Ta ? -6 : 18);
+    ctx.strokeText(t1, w - m.r - 6, y1); ctx.fillText(t1, w - m.r - 6, y1);
+    ctx.textAlign = 'left';
+    var t2 = 'δ = ' + fmt(delta, 1) + ' mm', x2 = Math.min(X(xd) + 8, w - m.r - 90), y2 = (P.Ts >= P.Ta ? m.t + 18 : m.t + ph - 6);
+    ctx.strokeText(t2, x2, y2); ctx.fillText(t2, x2, y2);
+    $('#profTxt').innerHTML = 'La curva es la temperatura del aire a distintas distancias del vidrio. La línea punteada es la tangente en la pared: llega a la temperatura lejana a una distancia <b>δ = k<sub>aire</sub>/h = ' + fmt(delta, 1) + ' mm</b>. Con más <i>h</i> (más viento), δ es menor y la caída de temperatura se concentra más cerca del vidrio. En la pared el calor pasa por conducción: H = k<sub>aire</sub>·A·(T<sub>A</sub> − T)/δ = h·A·(T<sub>A</sub> − T).';
+  }
+
+  /* ---------- gráfico E(t) ---------- */
+  function niceMax(v) {
+    if (v <= 0) return 100;
+    var e = Math.pow(10, Math.floor(Math.log(v) / Math.LN10)), m = v / e;
+    return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * e;
+  }
+  function drawChart() {
+    var w0 = Math.max(220, Math.floor(cC.parentElement.clientWidth)), f = fit(cC, w0 < 480 ? 230 : 270), ctx = f.ctx, w = f.w, h = f.h, col = colors();
+    var maxE = Math.max(Math.abs(Hval()) * TMAX, 1);
+    for (var i = 0; i < S.hist.length; i++) maxE = Math.max(maxE, Math.abs(S.hist[i][1]));
+    var top = niceMax(maxE), neg = S.hist.some(function (p) { return p[1] < 0; }) || Hval() < 0;
+    var y0 = neg ? -top : 0, y1 = top;
+    var m = { l: 56, r: 14, t: 12, b: 36 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
+    var X = function (v) { return m.l + v / TMAX * pw; }, Y = function (v) { return m.t + (1 - (v - y0) / (y1 - y0)) * ph; };
+    ctx.font = '400 12px ' + FB; ctx.strokeStyle = col.grid; ctx.fillStyle = col.muted; ctx.lineWidth = 1;
+    var ticks = neg ? [-top, -top / 2, 0, top / 2, top] : [0, top / 4, top / 2, top * 3 / 4, top];
+    ticks.forEach(function (v) {
+      ctx.beginPath(); ctx.moveTo(m.l, Y(v)); ctx.lineTo(w - m.r, Y(v)); ctx.stroke();
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(String(Math.round(v)).replace('-', '−'), m.l - 6, Y(v));
+    });
+    for (var t = 0; t <= TMAX; t += 2) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(t, X(t), m.t + ph + 6); }
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText('tiempo (s)', m.l + pw / 2, h - 4);
+    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('energía perdida (J)', 0, 0); ctx.restore();
+    ctx.strokeStyle = col.line; ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t + ph); ctx.lineTo(w - m.r, m.t + ph); ctx.stroke();
+    // línea
+    ctx.strokeStyle = col.flow; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
+    S.hist.forEach(function (p, k) { if (k === 0) ctx.moveTo(X(p[0]), Y(p[1])); else ctx.lineTo(X(p[0]), Y(p[1])); });
+    ctx.lineTo(X(S.t), Y(S.E)); ctx.stroke();
+    // puntos por segundo
+    ctx.fillStyle = col.flow;
+    for (var s = 1; s <= Math.floor(S.t + 1e-6); s++) {
+      var Es = interpE(s);
+      ctx.beginPath(); ctx.arc(X(s), Y(Es), 4, 0, 7); ctx.fill();
+      ctx.fillStyle = col.fg; ctx.font = '500 11.5px ' + FB; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+      ctx.lineWidth = 3.5; ctx.strokeStyle = col.card;
+      var txt = fmt(Es, 0) + ' J', ly = Es >= 0 ? Y(Es) - 8 : Y(Es) + 20;
+      ctx.strokeText(txt, X(s), ly); ctx.fillText(txt, X(s), ly); ctx.fillStyle = col.flow;
+    }
+    ctx.fillStyle = col.fg; ctx.beginPath(); ctx.arc(X(S.t), Y(S.E), 5, 0, 7); ctx.fill();
+  }
+  function interpE(t) {
+    var a = S.hist, i;
+    for (i = a.length - 1; i >= 0; i--) if (a[i][0] <= t) break;
+    if (i < 0) return 0;
+    if (i === a.length - 1) return a[i][1] + (S.E - a[i][1]) * (S.t > a[i][0] ? (t - a[i][0]) / (S.t - a[i][0]) : 0);
+    var p = a[i], q = a[i + 1];
+    return p[1] + (q[1] - p[1]) * (t - p[0]) / (q[0] - p[0]);
+  }
+
+  /* ---------- UI ---------- */
+  function updateUI() {
+    var H = Hval();
+    $('#hO').textContent = P.h + ' W/(m²K)';
+    $('#AO').textContent = fmt(P.A, 1) + ' m²';
+    $('#TsO').textContent = P.Ts + ' °C';
+    $('#TaO').textContent = P.Ta + ' °C';
+    $('#rH').textContent = fmt(H, 1) + ' W';
+    $('#rJ').innerHTML = fmt(H, 1) + ' J <small>cada segundo</small>';
+    $('#rD').textContent = fmt(KAIR / P.h * 1000, 1) + ' mm';
+    $('#rT').textContent = fmt(S.t, 1) + ' s';
+    $('#rE').textContent = fmt(S.E, 0) + ' J';
+    $('#s2').textContent = 'H = ' + P.h + ' × ' + fmt(P.A, 1) + ' × (' + (P.Ts + 273) + ' − ' + (P.Ta + 273) + ') = ' + P.h + ' × ' + fmt(P.A, 1) + ' × ' + (P.Ts - P.Ta);
+    $('#s3').textContent = 'H = ' + fmt(H, 1) + ' W = ' + fmt(H, 1) + ' J/s';
+    var b = $('#btnPlay'); b.textContent = S.t >= TMAX ? 'Fin' : (S.playing ? 'Pausa' : 'Continuar'); b.disabled = S.t >= TMAX;
+  }
+  function render() { drawScene(); drawProf(); drawChart(); updateUI(); }
+  function tick(ts) {
+    S.raf = 0;
+    var dtR = S.last ? Math.min(0.1, (ts - S.last) / 1000) : 0; S.last = ts;
+    stepParts(dtR);
+    if (S.playing && S.t < TMAX) {
+      var dt = Math.min(dtR * S.speed, TMAX - S.t);
+      S.E += Hval() * dt; S.t += dt;
+      if (S.t - S.lastHist >= 0.05 || S.t >= TMAX) { S.hist.push([S.t, S.E]); S.lastHist = S.t; }
+      if (S.t >= TMAX) { S.t = TMAX; S.playing = false; }
+    }
+    render();
+    S.raf = requestAnimationFrame(tick);
+  }
+  function resetSim() { S.t = 0; S.E = 0; S.hist = [[0, 0]]; S.lastHist = 0; S.playing = true; S.parts = []; S.spawnAcc = 0; }
+  function setInputs() { $('#h').value = P.h; $('#A').value = P.A; $('#Ts').value = P.Ts; $('#Ta').value = P.Ta; }
+
+  $('#btnPlay').addEventListener('click', function () { if (S.t < TMAX) S.playing = !S.playing; });
+  $('#btnReset').addEventListener('click', resetSim);
+  $('#speed').addEventListener('change', function (e) { S.speed = parseFloat(e.target.value); });
+  ['h', 'A', 'Ts', 'Ta'].forEach(function (k) {
+    $('#' + k).addEventListener('input', function (e) { P[k] = parseFloat(e.target.value); });
+  });
+  document.querySelectorAll('.presets button[data-h]').forEach(function (b) {
+    b.addEventListener('click', function () { P.h = parseFloat(b.getAttribute('data-h')); setInputs(); });
+  });
+  $('#btnEj').addEventListener('click', function () { P = { h: 4, A: 1.2, Ts: 10, Ta: 0 }; setInputs(); resetSim(); });
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
+  new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+  setInputs(); render();
+  S.raf = requestAnimationFrame(tick);
+})();
+</script>
