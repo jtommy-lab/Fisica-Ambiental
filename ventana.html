@@ -92,9 +92,14 @@
     <div class="sliders">
       <div class="sl"><div class="row"><label for="h">Coeficiente de convección h</label><output id="hO"></output></div><input id="h" type="range" min="1" max="100" step="1" value="4"></div>
       <div class="sl"><div class="row"><label for="A">Área del vidrio A</label><output id="AO"></output></div><input id="A" type="range" min="0.2" max="3" step="0.1" value="1.2"></div>
-      <div class="sl"><div class="row"><label for="Ts">Temperatura del vidrio</label><output id="TsO"></output></div><input id="Ts" type="range" min="-5" max="30" step="1" value="10"></div>
+      <div class="sl"><div class="row"><label for="Ts">Temperatura del vidrio (inicial si se enfría)</label><output id="TsO"></output></div><input id="Ts" type="range" min="-5" max="30" step="1" value="10"></div>
       <div class="sl"><div class="row"><label for="Ta">Temperatura del aire exterior</label><output id="TaO"></output></div><input id="Ta" type="range" min="-10" max="20" step="1" value="0"></div>
+      <div class="sl"><div class="row"><label for="d">Espesor del vidrio (modo «se enfría»)</label><output id="dO"></output></div><input id="d" type="range" min="2" max="12" step="1" value="5"></div>
     </div>
+    <div class="presets" style="margin-top:14px">
+      <label style="display:inline-flex;gap:8px;align-items:center;color:var(--fg)"><input type="checkbox" id="cool"> El vidrio se enfría (sin reposición de calor desde el interior)</label>
+    </div>
+    <p class="hint" id="coolTxt"></p>
     <div class="presets">
       <span>Valores de h:</span>
       <button data-h="4">Ejercicio (4)</button>
@@ -107,6 +112,7 @@
   </section>
 
   <dl class="card readout" aria-label="Resultados">
+    <div><dt>Temperatura del vidrio</dt><dd id="rTg">—</dd></div>
     <div><dt>Rapidez de pérdida H</dt><dd id="rH">—</dd></div>
     <div><dt>Energía perdida por segundo</dt><dd id="rJ">—</dd></div>
     <div><dt>Espesor efectivo de la capa límite δ = k/h</dt><dd id="rD">—</dd></div>
@@ -124,12 +130,12 @@
   <section class="card">
     <h2>Energía perdida en el tiempo</h2>
     <div class="cv"><canvas id="chart" role="img" aria-label="Energía acumulada perdida por la ventana en función del tiempo"></canvas></div>
-    <p class="hint">La pendiente de la línea es H. Si cambias <i>h</i> mientras corre, la pendiente cambia. Los puntos marcan cada segundo.</p>
+    <p class="hint">La pendiente de la línea es H. Si cambias <i>h</i> mientras corre, la pendiente cambia. Los puntos marcan cada segundo (cada 5 min en el modo «se enfría»).</p>
   </section>
 
   <footer class="card">
     <p>Modelo: H = hA(T<sub>A</sub> − T) con T<sub>A</sub> la temperatura del vidrio y T la del aire lejos de la superficie, constantes. Pegado al vidrio está la capa límite: una capa delgada donde el aire pasa de estar quieto en la pared (no deslizamiento) a la velocidad y temperatura del aire lejano. En la pared el calor pasa por conducción; más lejos lo arrastra el movimiento del aire. Newton junta ambos efectos en h, con h ≈ k<sub>aire</sub>/δ y k<sub>aire</sub> = 0.0234 W/mK. H > 0 significa que el calor va del vidrio al aire. Si el vidrio estuviera más frío que el aire, H sería negativo y el calor iría del aire al vidrio.</p>
-    <p>Las partículas son ilustrativas: su cantidad y su rapidez aumentan con H y con h, pero no representan moléculas reales.</p>
+    <p>Por defecto el vidrio se mantiene a temperatura constante (el interior repone el calor que pierde), como supone el ejercicio. En el modo «se enfría», el vidrio solo pierde calor por una cara hacia el aire exterior, que se supone constante; su capacidad térmica es C = ρ·c·d·A con valores típicos ρ = 2500 kg/m³ y c = 840 J/(kg·K), que no son datos del ejercicio. Las partículas son ilustrativas: su cantidad y su rapidez aumentan con H y con h, pero no representan moléculas reales.</p>
   </footer>
 </div>
 
@@ -142,10 +148,13 @@
   var FB = "Inter, system-ui, -apple-system, 'Segoe UI', sans-serif";
   var FH = "'Space Grotesk', Inter, system-ui, sans-serif";
   var TMAX = 10;
-  var P = { h: 4, A: 1.2, Ts: 10, Ta: 0 };
-  var S = { t: 0, E: 0, playing: true, speed: 1, hist: [[0, 0]], lastHist: 0, raf: 0, last: 0, parts: [], spawnAcc: 0, rnd: 1 };
+  var P = { h: 4, A: 1.2, Ts: 10, Ta: 0, d: 5 };
+  var RHO = 2500, CG = 840;
+  var S = { t: 0, E: 0, playing: true, speed: 1, hist: [[0, 0]], lastHist: 0, raf: 0, last: 0, parts: [], spawnAcc: 0, rnd: 1, cool: false, Tg: 10 };
+  var Tglass = function () { return S.cool ? S.Tg : P.Ts; };
+  var Ccap = function () { return RHO * CG * (P.d / 1000) * P.A; };
   function rand() { S.rnd = (S.rnd * 16807) % 2147483647; return S.rnd / 2147483647; }
-  var Hval = function () { return P.h * P.A * (P.Ts - P.Ta); };
+  var Hval = function () { return P.h * P.A * (Tglass() - P.Ta); };
   var fmt = function (v, d) { return v.toFixed(d).replace('-', '−'); };
 
   function colors() {
@@ -192,11 +201,11 @@
     ctx.fillText('interior', g.xg / 2, g.top + 22);
     ctx.fillText('aire exterior: ' + fmt(P.Ta, 0) + ' °C', g.x1 + (w - g.x1) / 2, g.top - 14);
     // vidrio
-    var cg = heat(P.Ts);
+    var cg = heat(Tglass());
     ctx.fillStyle = rgb(cg, 0.95); ctx.fillRect(g.xg, g.top, g.gw, g.bot - g.top);
     ctx.strokeStyle = col.fg; ctx.lineWidth = 2; ctx.strokeRect(g.xg, g.top, g.gw, g.bot - g.top);
     ctx.fillStyle = col.fg; ctx.font = '600 13px ' + FB; ctx.textAlign = 'center';
-    ctx.fillText('vidrio: ' + fmt(P.Ts, 0) + ' °C', g.xg + g.gw / 2, g.top - 14);
+    ctx.fillText('vidrio: ' + fmt(Tglass(), S.cool ? 1 : 0) + ' °C', g.xg + g.gw / 2, g.top - 14);
     ctx.font = '400 12px ' + FB; ctx.fillStyle = col.muted;
     ctx.fillText('A = ' + fmt(P.A, 1) + ' m²', g.xg + g.gw / 2, g.bot + 18);
     // partículas
@@ -227,10 +236,10 @@
     S.spawnAcc += rate * dt;
     while (S.spawnAcc >= 1) {
       S.spawnAcc -= 1;
-      S.parts.push({ x: 0, y: 0.04 + 0.92 * rand(), T0: P.Ts, v: vel * (0.8 + 0.4 * rand()), r: 2.6 + 2 * rand() });
+      S.parts.push({ x: 0, y: 0.04 + 0.92 * rand(), T0: Tglass(), v: vel * (0.8 + 0.4 * rand()), r: 2.6 + 2 * rand() });
     }
     for (var i = S.parts.length - 1; i >= 0; i--) {
-      var p = S.parts[i]; p.x += p.v * dt * (P.Ts >= P.Ta ? 1 : 1);
+      var p = S.parts[i]; p.x += p.v * dt;
       if (p.x > span) S.parts.splice(i, 1);
     }
     if (S.parts.length > 400) S.parts.splice(0, S.parts.length - 400);
@@ -241,7 +250,7 @@
   function drawProf() {
     var w0 = Math.max(220, Math.floor(cP.parentElement.clientWidth)), f = fit(cP, w0 < 480 ? 220 : 250), ctx = f.ctx, w = f.w, h = f.h, col = colors();
     var delta = KAIR / P.h * 1000; // mm
-    var lo = Math.min(P.Ts, P.Ta), hi = Math.max(P.Ts, P.Ta);
+    var Tgl = Tglass(), lo = Math.min(Tgl, P.Ta), hi = Math.max(Tgl, P.Ta);
     if (hi - lo < 1) { lo -= 1; hi += 1; }
     var pad = (hi - lo) * 0.12; lo -= pad; hi += pad;
     var m = { l: 56, r: 14, t: 12, b: 38 }, pw = w - m.l - m.r, ph = h - m.t - m.b;
@@ -262,23 +271,23 @@
     ctx.strokeStyle = col.muted; ctx.lineWidth = 1.4; ctx.setLineDash([6, 5]);
     ctx.beginPath(); ctx.moveTo(m.l, Y(P.Ta)); ctx.lineTo(w - m.r, Y(P.Ta)); ctx.stroke();
     // tangente en la pared: llega a T lejana en y = delta
-    ctx.beginPath(); ctx.moveTo(X(0), Y(P.Ts)); ctx.lineTo(X(xd), Y(P.Ta)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(X(0), Y(Tgl)); ctx.lineTo(X(xd), Y(P.Ta)); ctx.stroke(); ctx.setLineDash([]);
     // perfil real
     ctx.strokeStyle = col.flow; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
     for (var i = 0; i <= 200; i++) {
-      var y = YMAX * i / 200, T = P.Ta + (P.Ts - P.Ta) * Math.exp(-y / delta);
+      var y = YMAX * i / 200, T = P.Ta + (Tgl - P.Ta) * Math.exp(-y / delta);
       if (i === 0) ctx.moveTo(X(y), Y(T)); else ctx.lineTo(X(y), Y(T));
     }
     ctx.stroke();
-    ctx.fillStyle = col.flow; ctx.beginPath(); ctx.arc(X(0), Y(P.Ts), 4.5, 0, 7); ctx.fill();
+    ctx.fillStyle = col.flow; ctx.beginPath(); ctx.arc(X(0), Y(Tgl), 4.5, 0, 7); ctx.fill();
     // etiquetas
     ctx.font = '500 12px ' + FB; ctx.textBaseline = 'bottom';
     ctx.fillStyle = col.fg; ctx.textAlign = 'right';
     ctx.lineWidth = 4; ctx.strokeStyle = col.card;
-    var t1 = 'T lejos del vidrio = ' + fmt(P.Ta, 0) + ' °C', y1 = Y(P.Ta) + (P.Ts >= P.Ta ? -6 : 18);
+    var t1 = 'T lejos del vidrio = ' + fmt(P.Ta, 0) + ' °C', y1 = Y(P.Ta) + (Tgl >= P.Ta ? -6 : 18);
     ctx.strokeText(t1, w - m.r - 6, y1); ctx.fillText(t1, w - m.r - 6, y1);
     ctx.textAlign = 'left';
-    var t2 = 'δ = ' + fmt(delta, 1) + ' mm', x2 = Math.min(X(xd) + 8, w - m.r - 90), y2 = (P.Ts >= P.Ta ? m.t + 18 : m.t + ph - 6);
+    var t2 = 'δ = ' + fmt(delta, 1) + ' mm', x2 = Math.min(X(xd) + 8, w - m.r - 90), y2 = (Tgl >= P.Ta ? m.t + 18 : m.t + ph - 6);
     ctx.strokeText(t2, x2, y2); ctx.fillText(t2, x2, y2);
     $('#profTxt').innerHTML = 'La curva es la temperatura del aire a distintas distancias del vidrio. La línea punteada es la tangente en la pared: llega a la temperatura lejana a una distancia <b>δ = k<sub>aire</sub>/h = ' + fmt(delta, 1) + ' mm</b>. Con más <i>h</i> (más viento), δ es menor y la caída de temperatura se concentra más cerca del vidrio. En la pared el calor pasa por conducción: H = k<sub>aire</sub>·A·(T<sub>A</sub> − T)/δ = h·A·(T<sub>A</sub> − T).';
   }
@@ -291,7 +300,7 @@
   }
   function drawChart() {
     var w0 = Math.max(220, Math.floor(cC.parentElement.clientWidth)), f = fit(cC, w0 < 480 ? 230 : 270), ctx = f.ctx, w = f.w, h = f.h, col = colors();
-    var maxE = Math.max(Math.abs(Hval()) * TMAX, 1);
+    var maxE = S.cool ? Math.max(Math.min(Math.abs(P.h * P.A * (P.Ts - P.Ta)) * TMAX, Ccap() * Math.abs(P.Ts - P.Ta)), 1) : Math.max(Math.abs(Hval()) * TMAX, 1);
     for (var i = 0; i < S.hist.length; i++) maxE = Math.max(maxE, Math.abs(S.hist[i][1]));
     var top = niceMax(maxE), neg = S.hist.some(function (p) { return p[1] < 0; }) || Hval() < 0;
     var y0 = neg ? -top : 0, y1 = top;
@@ -301,11 +310,12 @@
     var ticks = neg ? [-top, -top / 2, 0, top / 2, top] : [0, top / 4, top / 2, top * 3 / 4, top];
     ticks.forEach(function (v) {
       ctx.beginPath(); ctx.moveTo(m.l, Y(v)); ctx.lineTo(w - m.r, Y(v)); ctx.stroke();
-      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(String(Math.round(v)).replace('-', '−'), m.l - 6, Y(v));
+      ctx.textAlign = 'right'; ctx.textBaseline = 'middle'; ctx.fillText(String(S.cool ? Math.round(v / 1000) : Math.round(v)).replace('-', '−'), m.l - 6, Y(v));
     });
-    for (var t = 0; t <= TMAX; t += 2) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(t, X(t), m.t + ph + 6); }
-    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText('tiempo (s)', m.l + pw / 2, h - 4);
-    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText('energía perdida (J)', 0, 0); ctx.restore();
+    var tst = S.cool ? 300 : 2;
+    for (var t = 0; t <= TMAX; t += tst) { ctx.textAlign = 'center'; ctx.textBaseline = 'top'; ctx.fillText(S.cool ? t / 60 : t, X(t), m.t + ph + 6); }
+    ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.fillText(S.cool ? 'tiempo (min)' : 'tiempo (s)', m.l + pw / 2, h - 4);
+    ctx.save(); ctx.translate(12, m.t + ph / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(S.cool ? 'energía perdida (kJ)' : 'energía perdida (J)', 0, 0); ctx.restore();
     ctx.strokeStyle = col.line; ctx.beginPath(); ctx.moveTo(m.l, m.t); ctx.lineTo(m.l, m.t + ph); ctx.lineTo(w - m.r, m.t + ph); ctx.stroke();
     // línea
     ctx.strokeStyle = col.flow; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.beginPath();
@@ -313,12 +323,13 @@
     ctx.lineTo(X(S.t), Y(S.E)); ctx.stroke();
     // puntos por segundo
     ctx.fillStyle = col.flow;
-    for (var s = 1; s <= Math.floor(S.t + 1e-6); s++) {
+    var dstep = S.cool ? 300 : 1;
+    for (var s = dstep; s <= S.t + 1e-6; s += dstep) {
       var Es = interpE(s);
       ctx.beginPath(); ctx.arc(X(s), Y(Es), 4, 0, 7); ctx.fill();
       ctx.fillStyle = col.fg; ctx.font = '500 11.5px ' + FB; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
       ctx.lineWidth = 3.5; ctx.strokeStyle = col.card;
-      var txt = fmt(Es, 0) + ' J', ly = Es >= 0 ? Y(Es) - 8 : Y(Es) + 20;
+      var txt = S.cool ? fmt(Es / 1000, 1) + ' kJ' : fmt(Es, 0) + ' J', ly = Es >= 0 ? Y(Es) - 8 : Y(Es) + 20;
       ctx.strokeText(txt, X(s), ly); ctx.fillText(txt, X(s), ly); ctx.fillStyle = col.flow;
     }
     ctx.fillStyle = col.fg; ctx.beginPath(); ctx.arc(X(S.t), Y(S.E), 5, 0, 7); ctx.fill();
@@ -342,9 +353,15 @@
     $('#rH').textContent = fmt(H, 1) + ' W';
     $('#rJ').innerHTML = fmt(H, 1) + ' J <small>cada segundo</small>';
     $('#rD').textContent = fmt(KAIR / P.h * 1000, 1) + ' mm';
-    $('#rT').textContent = fmt(S.t, 1) + ' s';
-    $('#rE').textContent = fmt(S.E, 0) + ' J';
-    $('#s2').textContent = 'H = ' + P.h + ' × ' + fmt(P.A, 1) + ' × (' + (P.Ts + 273) + ' − ' + (P.Ta + 273) + ') = ' + P.h + ' × ' + fmt(P.A, 1) + ' × ' + (P.Ts - P.Ta);
+    $('#rTg').textContent = fmt(Tglass(), S.cool ? 2 : 1) + ' °C';
+    $('#rT').textContent = S.cool ? fmt(S.t / 60, 1) + ' min' : fmt(S.t, 1) + ' s';
+    $('#dO').textContent = P.d + ' mm';
+    $('#d').disabled = !S.cool;
+    $('#rE').textContent = S.cool ? fmt(S.E / 1000, 1) + ' kJ' : fmt(S.E, 0) + ' J';
+    var Tgl2 = Tglass();
+    $('#s2').textContent = S.cool ? 'H = ' + P.h + ' × ' + fmt(P.A, 1) + ' × (' + fmt(Tgl2, 2) + ' − ' + P.Ta + ') = ' + P.h + ' × ' + fmt(P.A, 1) + ' × ' + fmt(Tgl2 - P.Ta, 2) : 'H = ' + P.h + ' × ' + fmt(P.A, 1) + ' × (' + (P.Ts + 273) + ' − ' + (P.Ta + 273) + ') = ' + P.h + ' × ' + fmt(P.A, 1) + ' × ' + (P.Ts - P.Ta);
+    var C = Ccap(), tau = C / (P.h * P.A);
+    $('#coolTxt').textContent = S.cool ? 'Capacidad térmica del vidrio C = ρ·c·d·A ≈ ' + Math.round(C) + ' J/K. Constante de tiempo τ = C/(hA) ≈ ' + fmt(tau / 60, 1) + ' min: en ese tiempo la diferencia de temperatura baja a ~37 % de la inicial. En este modo 1 s de animación = 1 min.' : 'Por defecto, la temperatura del vidrio se mantiene constante: el interior de la casa repone el calor que se pierde, como supone el ejercicio.';
     $('#s3').textContent = 'H = ' + fmt(H, 1) + ' W = ' + fmt(H, 1) + ' J/s';
     var b = $('#btnPlay'); b.textContent = S.t >= TMAX ? 'Fin' : (S.playing ? 'Pausa' : 'Continuar'); b.disabled = S.t >= TMAX;
   }
@@ -354,27 +371,32 @@
     var dtR = S.last ? Math.min(0.1, (ts - S.last) / 1000) : 0; S.last = ts;
     stepParts(dtR);
     if (S.playing && S.t < TMAX) {
-      var dt = Math.min(dtR * S.speed, TMAX - S.t);
-      S.E += Hval() * dt; S.t += dt;
-      if (S.t - S.lastHist >= 0.05 || S.t >= TMAX) { S.hist.push([S.t, S.E]); S.lastHist = S.t; }
+      var dt = Math.min(dtR * S.speed * (S.cool ? 60 : 1), TMAX - S.t);
+      if (S.cool) {
+        var tau = Ccap() / (P.h * P.A), Tn = P.Ta + (S.Tg - P.Ta) * Math.exp(-dt / tau);
+        S.E += Ccap() * (S.Tg - Tn); S.Tg = Tn;
+      } else S.E += Hval() * dt;
+      S.t += dt;
+      if (S.t - S.lastHist >= TMAX / 200 || S.t >= TMAX) { S.hist.push([S.t, S.E]); S.lastHist = S.t; }
       if (S.t >= TMAX) { S.t = TMAX; S.playing = false; }
     }
     render();
     S.raf = requestAnimationFrame(tick);
   }
-  function resetSim() { S.t = 0; S.E = 0; S.hist = [[0, 0]]; S.lastHist = 0; S.playing = true; S.parts = []; S.spawnAcc = 0; }
-  function setInputs() { $('#h').value = P.h; $('#A').value = P.A; $('#Ts').value = P.Ts; $('#Ta').value = P.Ta; }
+  function resetSim() { S.t = 0; S.E = 0; S.hist = [[0, 0]]; S.lastHist = 0; S.playing = true; S.parts = []; S.spawnAcc = 0; S.Tg = P.Ts; }
+  function setInputs() { $('#h').value = P.h; $('#A').value = P.A; $('#Ts').value = P.Ts; $('#Ta').value = P.Ta; $('#d').value = P.d; $('#cool').checked = S.cool; }
 
   $('#btnPlay').addEventListener('click', function () { if (S.t < TMAX) S.playing = !S.playing; });
   $('#btnReset').addEventListener('click', resetSim);
   $('#speed').addEventListener('change', function (e) { S.speed = parseFloat(e.target.value); });
-  ['h', 'A', 'Ts', 'Ta'].forEach(function (k) {
-    $('#' + k).addEventListener('input', function (e) { P[k] = parseFloat(e.target.value); });
+  ['h', 'A', 'Ts', 'Ta', 'd'].forEach(function (k) {
+    $('#' + k).addEventListener('input', function (e) { P[k] = parseFloat(e.target.value); if (k === 'Ts' && S.cool) S.Tg = P.Ts; });
   });
   document.querySelectorAll('.presets button[data-h]').forEach(function (b) {
     b.addEventListener('click', function () { P.h = parseFloat(b.getAttribute('data-h')); setInputs(); });
   });
-  $('#btnEj').addEventListener('click', function () { P = { h: 4, A: 1.2, Ts: 10, Ta: 0 }; setInputs(); resetSim(); });
+  $('#btnEj').addEventListener('click', function () { P = { h: 4, A: 1.2, Ts: 10, Ta: 0, d: 5 }; S.cool = false; TMAX = 10; setInputs(); resetSim(); });
+  $('#cool').addEventListener('change', function (e) { S.cool = e.target.checked; TMAX = S.cool ? 1200 : 10; resetSim(); });
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(render);
   new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
   setInputs(); render();
